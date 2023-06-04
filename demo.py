@@ -51,6 +51,8 @@ if __name__=="__main__":
     first_app=pn.Column(variable_widget, window_widget, sigma_widget, bound_plot_1)
 
     # with this line, run the demo.py will start a server
-    first_app.show(port=5007)
+    #first_app.show()
+    # this setting
+    first_app.show(port=8000,websocket_origin='ffq-panel-test.azurewebsites.net',address='0.0.0.0')
 
 

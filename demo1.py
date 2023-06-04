@@ -24,4 +24,4 @@ pn.Row(
     #right: call a function scatter() with data from: x,y,c
     pn.bind(autompg.hvplot.scatter, x, y, c=color)
     # show() allows to display in VS code
-).show()
+).show(port=8000,websocket_origin='ffq-panel-test.azurewebsites.net',address='0.0.0.0')
