@@ -3,9 +3,8 @@ import pandas as pd
 import holoviews as hv
 import panel as pn
 import hvplot.pandas
-from scipy.optimize import minimize
-from load import get_stocks
-from logic import compute_frontier,compute_random_allocations,find_best_allocation
+from demo2.load import get_stocks
+from demo2.logic import compute_frontier,compute_random_allocations,find_best_allocation
 
 pn.extension("tabulator", design="material", template="material", loading_indicator=True)
 
@@ -181,7 +180,7 @@ log_ret_hists = (
 
 # ==================
 # Overall layout
-main = pn.Tabs(
+main_plot = pn.Tabs(
     (
         "Analysis",
         pn.Column(
@@ -204,7 +203,8 @@ main = pn.Tabs(
     min_height=1000,
 ).servable(title="Portfolio Optimizer")
 
+page=pn.Row(sidebar, main_plot)
 #local run:
-# pn.Row(sidebar, main).show()
+page.show()
 #Azure:
-pn.Row(sidebar, main).show(port=8000,websocket_origin='ffq-panel-test.azurewebsites.net',address='0.0.0.0')
+# page.show(port=8000,websocket_origin='ffq-panel-test.azurewebsites.net',address='0.0.0.0')

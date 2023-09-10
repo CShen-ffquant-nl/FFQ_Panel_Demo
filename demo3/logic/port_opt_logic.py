@@ -1,7 +1,37 @@
+# =================
+# plot Portfolio optimization plot
+
+# Set up data pipelines
 import numpy as np
 import pandas as pd
 import panel as pn
+from pages.sidebar import selected_stocks,n_samples,posxy
 from scipy.optimize import minimize
+
+
+
+def check_sum(weights):
+    """_summary_
+
+    Args:
+        weights (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return np.sum(weights) - 1
+
+def get_return(mean_ret, weights):
+    return np.sum(mean_ret * weights) * 252
+
+def get_volatility(log_ret, weights):
+    return np.sqrt(np.dot(weights.T, np.dot(np.cov(log_ret[1:], rowvar=False) * 252, weights)))
+
+def minimize_difference(weights, des_vol, des_ret, log_ret, mean_ret):
+    ret = get_return(mean_ret, weights)
+    vol = get_volatility(log_ret, weights)
+    return abs(des_ret-ret) + abs(des_vol-vol)
+
 
 def compute_random_allocations(log_return, num_ports=15000):
     """_summary_
@@ -36,43 +66,6 @@ def compute_random_allocations(log_return, num_ports=15000):
     df.attrs['log_return'] = log_return
     return df
 
-def check_sum(weights):
-    """_summary_
-
-    Args:
-        weights (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    return np.sum(weights) - 1
-
-def get_return(mean_ret, weights):
-    return np.sum(mean_ret * weights) * 252
-
-def get_volatility(log_ret, weights):
-    return np.sqrt(np.dot(weights.T, np.dot(np.cov(log_ret[1:], rowvar=False) * 252, weights)))
-
-def compute_frontier(df, n=30):
-    frontier_ret = np.linspace(df.Return.min(), df.Return.max(), n)
-    frontier_volatility = []
-
-    cols = len(df.columns) - 3
-    bounds = tuple((0, 1) for i in range(cols))
-    init_guess = [1./cols for i in range(cols)]
-    for possible_return in frontier_ret:
-        cons = (
-            {'type':'eq', 'fun': check_sum},
-            {'type':'eq', 'fun': lambda w: get_return(df.attrs['mean_return'], w) - possible_return}
-        )
-        result = minimize(lambda w: get_volatility(df.attrs['log_return'], w), init_guess, bounds=bounds, constraints=cons)
-        frontier_volatility.append(result['fun'])
-    return pd.DataFrame({'Volatility': frontier_volatility, 'Return': frontier_ret})
-
-def minimize_difference(weights, des_vol, des_ret, log_ret, mean_ret):
-    ret = get_return(mean_ret, weights)
-    vol = get_volatility(log_ret, weights)
-    return abs(des_ret-ret) + abs(des_vol-vol)
 
 @pn.cache
 def find_best_allocation(log_return, vol, ret):
@@ -94,3 +87,29 @@ def find_best_allocation(log_return, vol, ret):
     ret = get_return(mean_return, opt.x)
     vol = get_volatility(log_return, opt.x)
     return pd.Series(list(opt.x)+[ret, vol], index=list(log_return.columns)+['Return', 'Volatility'], name='Weight')
+
+
+def compute_frontier(df, n=30):
+    frontier_ret = np.linspace(df.Return.min(), df.Return.max(), n)
+    frontier_volatility = []
+
+    cols = len(df.columns) - 3
+    bounds = tuple((0, 1) for i in range(cols))
+    init_guess = [1./cols for i in range(cols)]
+    for possible_return in frontier_ret:
+        cons = (
+            {'type':'eq', 'fun': check_sum},
+            {'type':'eq', 'fun': lambda w: get_return(df.attrs['mean_return'], w) - possible_return}
+        )
+        result = minimize(lambda w: get_volatility(df.attrs['log_return'], w), init_guess, bounds=bounds, constraints=cons)
+        frontier_volatility.append(result['fun'])
+    return pd.DataFrame({'Volatility': frontier_volatility, 'Return': frontier_ret})
+
+
+
+log_return = np.log(selected_stocks / selected_stocks.shift(1))
+random_allocations = log_return.pipe(compute_random_allocations, n_samples)
+closest_allocation = log_return.pipe(find_best_allocation, posxy.param.x, posxy.param.y)
+efficient_frontier = random_allocations.pipe(compute_frontier)
+max_sharpe = random_allocations.pipe(lambda df: df[df.Sharpe == df.Sharpe.max()])
+
